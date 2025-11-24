@@ -1,0 +1,7 @@
+Flask>=2.0.0
+adafruit-circuitpython-dht
+adafruit-circuitpython-ads1x15
+RPi.GPIO
+adafruit-blinka
+
+

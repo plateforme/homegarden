@@ -1,0 +1,14 @@
+[Unit]
+Description=Homegarden Flask App
+After=network.target
+
+[Service]
+User=gregory
+WorkingDirectory=/home/gregory/homegarden
+Environment="PYTHONPATH=/home/gregory/homegarden/lib/python3.11/site-packages"
+ExecStart=/home/gregory/homegarden/bin/python3 /home/gregory/homegarden/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

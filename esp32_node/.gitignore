@@ -1,0 +1,11 @@
+# Fichier de configuration (contient des mots de passe)
+config.h
+
+# Fichiers de build Arduino
+*.hex
+*.elf
+*.bin
+
+# Dossiers de build
+build/
+

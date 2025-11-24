@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Configuration - Système d'Arrosage</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .scenario-table {
+            margin-top: 30px;
+        }
+        
+        .scenario-table table {
+            width: 100%;
+        }
+        
+        .action-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .action-arroser {
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            color: white;
+        }
+        
+        .action-surveiller {
+            background: linear-gradient(135deg, #ffd93d 0%, #ffed4e 100%);
+            color: #333;
+        }
+        
+        .action-pas {
+            background: linear-gradient(135deg, #95a5a6 0%, #bdc3c7 100%);
+            color: white;
+        }
+        
+        .save-success {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h2><i class="fas fa-seedling"></i> HomeGarden</h2>
+            <p>Système d'Arrosage Automatique</p>
+        </div>
+        <a href="/">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/nodes">
+            <i class="fas fa-network-wired"></i>
+            <span>Nœuds ESP32</span>
+        </a>
+        <a href="/configuration" class="active">
+            <i class="fas fa-cog"></i>
+            <span>Configuration</span>
+        </a>
+        <a href="/settings">
+            <i class="fas fa-sliders-h"></i>
+            <span>Paramètres</span>
+        </a>
+        <a href="/arrosage_history">
+            <i class="fas fa-history"></i>
+            <span>Historique</span>
+        </a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="content fade-in">
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-cog"></i> Configuration</h1>
+                <p style="margin-top: 10px; color: #666;">Configurez les paramètres d'arrosage pour votre plante</p>
+            </div>
+            <div class="header-icon">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+        </div>
+
+        <!-- Formulaire de configuration -->
+        <div class="form-modern">
+            <!-- Image de la plante -->
+            <div class="plant-image-container" id="plant-image-container" style="display: none;">
+                <img id="plant-image" src="" alt="Image de la plante" />
+            </div>
+
+            <!-- Sélection de la plante -->
+            <label for="plant">
+                <i class="fas fa-leaf"></i> Sélectionnez une plante
+            </label>
+            <select id="plant" name="plant" class="form-modern select">
+                <option value="">Chargement...</option>
+            </select>
+
+            <!-- Détails du scénario -->
+            <div id="scenario-details" class="scenario-table">
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 15px;"></i>
+                    <p>Sélectionnez une plante pour voir les scénarios d'arrosage</p>
+                </div>
+            </div>
+
+            <!-- Bouton d'enregistrement -->
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn-modern" onclick="saveConfig()">
+                    <i class="fas fa-save"></i>
+                    Enregistrer la configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification de succès -->
+    <div id="save-success" class="save-success">
+        <i class="fas fa-check-circle"></i> Configuration enregistrée avec succès !
+    </div>
+
+    <!-- Bouton de bascule mode sombre -->
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le thème">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+
+    <script>
+        // Gestion du mode sombre
+        (function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const html = document.documentElement;
+            
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            if (themeIcon) {
+                themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            });
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/get_scenarios')
+                .then(response => response.json())
+                .then(data => {
+                    const plantSelect = document.getElementById('plant');
+                    const scenarios = data.scenarios;
+                    const currentScenario = data.current_scenario;
+
+                    // Vider les options
+                    plantSelect.innerHTML = '';
+
+                    for (let plant in scenarios) {
+                        const option = document.createElement('option');
+                        option.value = plant;
+                        option.textContent = plant;
+                        if (plant === currentScenario) {
+                            option.selected = true;
+                        }
+                        plantSelect.appendChild(option);
+                    }
+
+                    if (currentScenario) {
+                        loadScenarioDetails(currentScenario);
+                        updatePlantImage(currentScenario);
+                    }
+
+                    plantSelect.addEventListener('change', function() {
+                        loadScenarioDetails(this.value);
+                        updatePlantImage(this.value);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des scénarios:', error);
+                    document.getElementById('plant').innerHTML = '<option value="">Erreur de chargement</option>';
+                });
+        });
+
+        function getPlantImageFilename(plantName) {
+            let filename = plantName
+                .replace(/\s+/g, '_')
+                .replace(/\./g, '')
+                .replace(/[^a-zA-Z0-9_]/g, '');
+            return filename;
+        }
+
+        function updatePlantImage(plantName) {
+            const imageContainer = document.getElementById('plant-image-container');
+            const plantImage = document.getElementById('plant-image');
+            const baseFilename = getPlantImageFilename(plantName);
+            const extensions = ['jpg', 'jpeg', 'png', 'webp'];
+            let currentExtensionIndex = 0;
+
+            function tryNextImage() {
+                if (currentExtensionIndex >= extensions.length) {
+                    imageContainer.style.display = 'none';
+                    return;
+                }
+
+                const extension = extensions[currentExtensionIndex];
+                const imagePath = `/static/images/${baseFilename}.${extension}`;
+                const img = new Image();
+
+                img.onload = function() {
+                    plantImage.src = imagePath;
+                    imageContainer.style.display = 'block';
+                };
+
+                img.onerror = function() {
+                    currentExtensionIndex++;
+                    tryNextImage();
+                };
+
+                img.src = imagePath;
+            }
+
+            imageContainer.style.display = 'none';
+            currentExtensionIndex = 0;
+            tryNextImage();
+        }
+
+        function loadScenarioDetails(plant) {
+            fetch('/get_scenario_details', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plant: plant })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const scenarioDetailsDiv = document.getElementById('scenario-details');
+                scenarioDetailsDiv.innerHTML = '';
+
+                if (data.length === 0) {
+                    scenarioDetailsDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 15px;"></i><p>Aucun scénario disponible pour cette plante</p></div>';
+                    return;
+                }
+
+                const table = document.createElement('table');
+                table.className = 'table-modern';
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+
+                // En-tête du tableau
+                const headerRow = document.createElement('tr');
+                const headers = [
+                    { text: 'Température', icon: 'fa-thermometer-half' },
+                    { text: 'Humidité air', icon: 'fa-tint' },
+                    { text: 'Humidité sol', icon: 'fa-water' },
+                    { text: 'Action', icon: 'fa-bolt' },
+                    { text: 'Durée', icon: 'fa-clock' },
+                    { text: 'Volume', icon: 'fa-flask' }
+                ];
+                
+                headers.forEach(header => {
+                    const th = document.createElement('th');
+                    th.innerHTML = `<i class="fas ${header.icon}"></i> ${header.text}`;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+
+                // Corps du tableau
+                data.forEach(scenario => {
+                    const row = document.createElement('tr');
+                    
+                    const values = [
+                        scenario['Air temperature (°C)'],
+                        scenario['Air humidity (%)'],
+                        scenario['Humidity of soil (%)'],
+                        scenario['Action'],
+                        scenario['Watering duration (minutes)'] + ' min',
+                        scenario['Total water volume (L)'] + ' L'
+                    ];
+                    
+                    values.forEach((cellText, index) => {
+                        const td = document.createElement('td');
+                        
+                        if (index === 3) {
+                            // Badge pour l'action
+                            const badge = document.createElement('span');
+                            badge.className = 'action-badge';
+                            
+                            if (cellText.includes('Arroser')) {
+                                badge.classList.add('action-arroser');
+                            } else if (cellText.includes('Surveiller')) {
+                                badge.classList.add('action-surveiller');
+                            } else {
+                                badge.classList.add('action-pas');
+                            }
+                            
+                            badge.textContent = cellText;
+                            td.appendChild(badge);
+                        } else {
+                            td.textContent = cellText;
+                        }
+                        
+                        row.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                scenarioDetailsDiv.appendChild(table);
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des détails:', error);
+                document.getElementById('scenario-details').innerHTML = 
+                    '<div style="text-align: center; padding: 40px; color: #e74c3c;"><i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 15px;"></i><p>Erreur lors du chargement des détails</p></div>';
+            });
+        }
+
+        function saveConfig() {
+            const plant = document.getElementById('plant').value;
+            const button = event.target;
+            const originalText = button.innerHTML;
+
+            if (!plant) {
+                alert('Veuillez sélectionner une plante');
+                return;
+            }
+
+            // Animation du bouton
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+            button.disabled = true;
+
+            fetch('/set_scenario', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plant: plant })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur lors de la mise à jour du scénario');
+                }
+                
+                // Afficher la notification de succès
+                const successDiv = document.getElementById('save-success');
+                successDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 3000);
+                
+                button.innerHTML = originalText;
+                button.disabled = false;
+            })
+            .catch(error => {
+                console.error(error);
+                alert('Erreur lors de l\'enregistrement de la configuration');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>

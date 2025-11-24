@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Historique - Système d'Arrosage</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .history-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-box {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            transition: var(--transition);
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .stat-box .stat-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: var(--primary-green);
+        }
+        
+        .stat-box .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 10px 0;
+        }
+        
+        .stat-box .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filters-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .view-toggle button {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+        
+        .view-toggle button.active {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%);
+            color: white;
+            border-color: var(--primary-green);
+        }
+        
+        .calendar-view {
+            display: none;
+        }
+        
+        .calendar-view.active {
+            display: block;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .calendar-day {
+            min-height: 80px;
+            aspect-ratio: 1;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            background: var(--bg-card);
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        
+        .calendar-day:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-green);
+        }
+        
+        .calendar-day.has-watering {
+            background: linear-gradient(135deg, rgba(45, 134, 89, 0.2) 0%, rgba(61, 163, 116, 0.2) 100%);
+            border-color: var(--primary-green);
+        }
+        
+        .calendar-day-header {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .calendar-day-number {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+        
+        .calendar-day-count {
+            font-size: 11px;
+            color: var(--primary-green);
+            font-weight: 600;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .table-modern tbody tr {
+            animation: fadeInRow 0.5s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        .table-modern tbody tr:nth-child(1) { animation-delay: 0.1s; }
+        .table-modern tbody tr:nth-child(2) { animation-delay: 0.2s; }
+        .table-modern tbody tr:nth-child(3) { animation-delay: 0.3s; }
+        .table-modern tbody tr:nth-child(4) { animation-delay: 0.4s; }
+        .table-modern tbody tr:nth-child(5) { animation-delay: 0.5s; }
+        
+        @keyframes fadeInRow {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h2><i class="fas fa-seedling"></i> HomeGarden</h2>
+            <p>Système d'Arrosage Automatique</p>
+        </div>
+        <a href="/">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/nodes">
+            <i class="fas fa-network-wired"></i>
+            <span>Nœuds ESP32</span>
+        </a>
+        <a href="/configuration">
+            <i class="fas fa-cog"></i>
+            <span>Configuration</span>
+        </a>
+        <a href="/settings">
+            <i class="fas fa-sliders-h"></i>
+            <span>Paramètres</span>
+        </a>
+        <a href="/arrosage_history" class="active">
+            <i class="fas fa-history"></i>
+            <span>Historique</span>
+        </a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="content fade-in">
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-history"></i> Historique des Arrosages</h1>
+                <p style="margin-top: 10px; color: #666;">Consultez l'historique complet de tous les arrosages</p>
+            </div>
+            <div class="header-icon">
+                <i class="fas fa-chart-bar"></i>
+            </div>
+        </div>
+
+        <!-- Filtres et vues -->
+        <div class="filters-section">
+            <div class="view-toggle">
+                <button id="list-view-btn" class="active">
+                    <i class="fas fa-list"></i> Liste
+                </button>
+                <button id="calendar-view-btn">
+                    <i class="fas fa-calendar"></i> Calendrier
+                </button>
+            </div>
+            
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label><i class="fas fa-filter"></i> Filtrer par date</label>
+                    <input type="date" id="filter-date" style="min-width: 180px;">
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar-week"></i> Période</label>
+                    <select id="filter-period">
+                        <option value="all">Toutes les périodes</option>
+                        <option value="today">Aujourd'hui</option>
+                        <option value="week">Cette semaine</option>
+                        <option value="month">Ce mois</option>
+                        <option value="custom">Personnalisé</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-search"></i> Rechercher</label>
+                    <input type="text" id="search-input" placeholder="Rechercher...">
+                </div>
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <button class="btn-modern" onclick="resetFilters()" style="padding: 10px 20px;">
+                        <i class="fas fa-redo"></i> Réinitialiser
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        {% if history %}
+        <div class="history-stats">
+            <div class="stat-box">
+                <div class="stat-icon">
+                    <i class="fas fa-tint"></i>
+                </div>
+                <div class="stat-value">{{ history|length }}</div>
+                <div class="stat-label">Arrosages totaux</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-day"></i>
+                </div>
+                <div class="stat-value">{{ history|length }}</div>
+                <div class="stat-label">Enregistrements</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-value">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-label">Historique complet</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Vue calendrier -->
+        <div id="calendar-view" class="calendar-view chart-card">
+            <h3>
+                <i class="fas fa-calendar"></i>
+                Vue calendrier
+            </h3>
+            <div id="calendar-container"></div>
+        </div>
+
+        <!-- Tableau d'historique -->
+        {% if history %}
+        <div id="list-view" class="chart-card">
+            <h3>
+                <i class="fas fa-list"></i>
+                Liste des arrosages
+            </h3>
+            <table class="table-modern" id="history-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <i class="fas fa-calendar-alt"></i> Date et Heure
+                        </th>
+                        <th>
+                            <i class="fas fa-clock"></i> Durée
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in history %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-calendar-check" style="color: var(--primary-green); margin-right: 8px;"></i>
+                            {{ entry[0] }}
+                        </td>
+                        <td>
+                            <span class="badge-modern badge-info">
+                                <i class="fas fa-hourglass-half"></i> {{ entry[1] }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="chart-card">
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h3 style="margin-bottom: 10px; color: #666;">Aucun historique disponible</h3>
+                <p style="color: #999;">Les arrosages apparaîtront ici une fois que le système aura commencé à fonctionner.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Bouton retour -->
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/" class="btn-modern">
+                <i class="fas fa-arrow-left"></i>
+                Retour au Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Bouton de bascule mode sombre -->
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le thème">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+
+    <script>
+        // Gestion du mode sombre
+        (function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const html = document.documentElement;
+            
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            if (themeIcon) {
+                themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            });
+        })();
+        
+        // Données de l'historique
+        const historyData = [
+            {% for entry in history %}
+            {
+                date: "{{ entry[0] }}",
+                duration: "{{ entry[1] }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Gestion des vues
+        document.getElementById('list-view-btn').addEventListener('click', function() {
+            document.getElementById('list-view').style.display = 'block';
+            document.getElementById('calendar-view').classList.remove('active');
+            this.classList.add('active');
+            document.getElementById('calendar-view-btn').classList.remove('active');
+        });
+        
+        document.getElementById('calendar-view-btn').addEventListener('click', function() {
+            document.getElementById('list-view').style.display = 'none';
+            document.getElementById('calendar-view').classList.add('active');
+            this.classList.add('active');
+            document.getElementById('list-view-btn').classList.remove('active');
+            renderCalendar();
+        });
+        
+        // Fonction pour parser les dates
+        function parseTimestamp(timestampStr) {
+            try {
+                return new Date(timestampStr.replace(' ', 'T'));
+            } catch {
+                return null;
+            }
+        }
+        
+        // Fonction pour rendre le calendrier
+        function renderCalendar() {
+            const container = document.getElementById('calendar-container');
+            if (!container) return;
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            
+            // Créer un map des arrosages par date
+            const wateringMap = new Map();
+            historyData.forEach(entry => {
+                const date = parseTimestamp(entry.date);
+                if (date) {
+                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    if (!wateringMap.has(dateKey)) {
+                        wateringMap.set(dateKey, 0);
+                    }
+                    wateringMap.set(dateKey, wateringMap.get(dateKey) + 1);
+                }
+            });
+            
+            // Créer le calendrier
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+            
+            const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+            
+            // Créer la grille du calendrier
+            let html = '<div class="calendar-grid">';
+            
+            // Titre du mois
+            html += '<div class="calendar-day-header" style="grid-column: span 7; margin-bottom: 15px; font-size: 20px; font-weight: 700; color: var(--text-primary); text-align: center; padding: 10px;">';
+            html += new Date(year, month).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            html += '</div>';
+            
+            // En-têtes des jours
+            dayNames.forEach(day => {
+                html += `<div class="calendar-day-header" style="font-weight: 600; padding: 8px;">${day}</div>`;
+            });
+            
+            // Jours vides au début
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                html += '<div class="calendar-day" style="opacity: 0.2; pointer-events: none;"></div>';
+            }
+            
+            // Jours du mois
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const count = wateringMap.get(dateKey) || 0;
+                const isToday = now.getDate() === day && now.getMonth() === month && now.getFullYear() === year;
+                
+                let dayStyle = '';
+                if (isToday) {
+                    dayStyle = 'border-color: var(--accent-orange); border-width: 3px; background: rgba(255, 107, 53, 0.1);';
+                }
+                
+                html += `<div class="calendar-day ${count > 0 ? 'has-watering' : ''}" style="${dayStyle}">`;
+                html += `<div class="calendar-day-number">${day}</div>`;
+                if (count > 0) {
+                    html += `<div class="calendar-day-count"><i class="fas fa-tint"></i> ${count}</div>`;
+                }
+                html += '</div>';
+            }
+            
+            html += '</div>'; // Fermer calendar-grid
+            
+            container.innerHTML = html;
+        }
+        
+        // Filtres
+        function applyFilters() {
+            const filterDate = document.getElementById('filter-date').value;
+            const filterPeriod = document.getElementById('filter-period').value;
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+            
+            const rows = document.querySelectorAll('#history-table tbody tr');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const dateCell = row.cells[0].textContent.toLowerCase();
+                const durationCell = row.cells[1].textContent.toLowerCase();
+                
+                let visible = true;
+                
+                // Filtre par recherche
+                if (searchText && !dateCell.includes(searchText) && !durationCell.includes(searchText)) {
+                    visible = false;
+                }
+                
+                // Filtre par période
+                if (visible && filterPeriod !== 'all') {
+                    const rowDate = parseTimestamp(dateCell);
+                    if (rowDate) {
+                        const now = new Date();
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        
+                        if (filterPeriod === 'today') {
+                            visible = rowDate >= today;
+                        } else if (filterPeriod === 'week') {
+                            const weekAgo = new Date(today);
+                            weekAgo.setDate(weekAgo.getDate() - 7);
+                            visible = rowDate >= weekAgo;
+                        } else if (filterPeriod === 'month') {
+                            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                            visible = rowDate >= monthStart;
+                        }
+                    }
+                }
+                
+                // Filtre par date spécifique
+                if (visible && filterDate) {
+                    const rowDate = parseTimestamp(dateCell);
+                    if (rowDate) {
+                        const filterDateObj = new Date(filterDate);
+                        visible = rowDate.toDateString() === filterDateObj.toDateString();
+                    }
+                }
+                
+                row.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+            
+            // Afficher un message si aucun résultat
+            const tbody = document.querySelector('#history-table tbody');
+            let noResultsMsg = tbody.querySelector('.no-results');
+            if (visibleCount === 0 && !noResultsMsg) {
+                noResultsMsg = document.createElement('tr');
+                noResultsMsg.className = 'no-results';
+                noResultsMsg.innerHTML = '<td colspan="2" style="text-align: center; padding: 40px; color: var(--text-muted);">Aucun résultat trouvé</td>';
+                tbody.appendChild(noResultsMsg);
+            } else if (visibleCount > 0 && noResultsMsg) {
+                noResultsMsg.remove();
+            }
+        }
+        
+        function resetFilters() {
+            document.getElementById('filter-date').value = '';
+            document.getElementById('filter-period').value = 'all';
+            document.getElementById('search-input').value = '';
+            applyFilters();
+        }
+        
+        // Écouteurs d'événements pour les filtres
+        document.getElementById('filter-date').addEventListener('change', applyFilters);
+        document.getElementById('filter-period').addEventListener('change', applyFilters);
+        document.getElementById('search-input').addEventListener('input', applyFilters);
+        
+        // Initialiser le calendrier si nécessaire
+        // Vérifier si on est déjà en vue calendrier au chargement
+        const calendarViewBtn = document.getElementById('calendar-view-btn');
+        if (calendarViewBtn && calendarViewBtn.classList.contains('active')) {
+            renderCalendar();
+        }
+        
+        // S'assurer que la vue liste est visible par défaut
+        const listView = document.getElementById('list-view');
+        const calendarView = document.getElementById('calendar-view');
+        if (listView && calendarView) {
+            listView.style.display = 'block';
+            calendarView.classList.remove('active');
+        }
+    </script>
+</body>
+</html>

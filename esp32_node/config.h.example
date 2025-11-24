@@ -1,0 +1,33 @@
+/*
+ * Fichier de configuration pour le nœud ESP32
+ * 
+ * INSTRUCTIONS :
+ * 1. Copiez ce fichier vers config.h
+ * 2. Modifiez les valeurs selon votre configuration
+ * 3. Ne commitez JAMAIS config.h dans le dépôt (il contient vos mots de passe)
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// Configuration WiFi
+#define WIFI_SSID "VOTRE_SSID_WIFI"
+#define WIFI_PASSWORD "VOTRE_MOT_DE_PASSE"
+
+// Adresse du hub Raspberry Pi
+#define HUB_URL "http://192.168.1.100:5000"
+
+// Identification du nœud (UNIQUE pour chaque nœud)
+#define NODE_ID "ESP32_001"
+#define NODE_NAME "Zone Jardin 1"
+#define NODE_LOCATION "Jardin avant"
+
+// Pins matériels (ajuster selon votre câblage)
+#define DHTPIN 4
+#define SOIL_MOISTURE_PIN 34
+#define PUMP_RELAY_PIN 2
+#define BATTERY_PIN 35
+#define SOLAR_CHARGE_PIN 32
+
+#endif
+

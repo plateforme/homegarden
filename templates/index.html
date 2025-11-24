@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Contrôle d'Arrosage - Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h2><i class="fas fa-seedling"></i> HomeGarden</h2>
+            <p>Système d'Arrosage Automatique</p>
+        </div>
+        <a href="/" class="active">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/nodes">
+            <i class="fas fa-network-wired"></i>
+            <span>Nœuds ESP32</span>
+        </a>
+        <a href="/configuration">
+            <i class="fas fa-cog"></i>
+            <span>Configuration</span>
+        </a>
+        <a href="/settings">
+            <i class="fas fa-sliders-h"></i>
+            <span>Paramètres</span>
+        </a>
+        <a href="/arrosage_history">
+            <i class="fas fa-history"></i>
+            <span>Historique</span>
+        </a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="content fade-in">
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+                <p style="margin-top: 10px; color: #666;">Surveillance en temps réel de votre système d'arrosage</p>
+            </div>
+            <div class="header-icon">
+                <i class="fas fa-leaf"></i>
+            </div>
+        </div>
+
+        <!-- Alertes -->
+        <div id="alerts-container" style="margin-bottom: 25px;"></div>
+
+        <!-- Grille de statuts -->
+        <div class="stats-grid">
+            <div class="status-card">
+                <div class="card-title">
+                    <i class="fas fa-thermometer-half"></i>
+                    Température de l'air
+                </div>
+                <div class="card-value">
+                    <span id="temperature">--</span><span class="card-unit">°C</span>
+                </div>
+                <div style="color: #999; font-size: 14px;">
+                    <i class="fas fa-info-circle"></i> Température ambiante
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-title">
+                    <i class="fas fa-tint"></i>
+                    Humidité de l'air
+                </div>
+                <div class="card-value">
+                    <span id="air_humidity">--</span><span class="card-unit">%</span>
+                </div>
+                <div style="color: #999; font-size: 14px;">
+                    <i class="fas fa-info-circle"></i> Niveau d'humidité
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-title">
+                    <i class="fas fa-water"></i>
+                    Humidité du sol
+                </div>
+                <div class="card-value">
+                    <span id="soil_humidity">--</span><span class="card-unit">%</span>
+                </div>
+                <div id="soil_status_text" style="color: #999; font-size: 14px;">
+                    <i class="fas fa-info-circle"></i> En cours de mesure...
+                </div>
+            </div>
+
+            <div class="status-card">
+                <div class="card-title">
+                    <i class="fas fa-pump-water"></i>
+                    État de la pompe
+                </div>
+                <div style="margin: 20px 0;">
+                    <span id="pump_status" class="badge-modern badge-success">Chargement...</span>
+                </div>
+                <div id="pump_status_text" style="color: #999; font-size: 14px;">
+                    <i class="fas fa-info-circle"></i> Statut en temps réel
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques et Contrôles -->
+        <div class="stats-grid" style="margin-bottom: 30px;">
+            <!-- Statistiques -->
+            <div class="status-card" style="grid-column: span 2;">
+                <div class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Statistiques (24h)
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Arrosages aujourd'hui</div>
+                        <div id="stat-today-waterings" style="font-size: 28px; font-weight: 700; color: var(--primary-green);">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Total arrosages</div>
+                        <div id="stat-total-waterings" style="font-size: 28px; font-weight: 700; color: var(--secondary-blue);">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Volume d'eau total</div>
+                        <div id="stat-water-volume" style="font-size: 28px; font-weight: 700; color: var(--accent-orange);">-- L</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Temps pompe total</div>
+                        <div id="stat-pump-time" style="font-size: 28px; font-weight: 700; color: #666;">-- min</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contrôle manuel -->
+            <div class="status-card">
+                <div class="card-title">
+                    <i class="fas fa-hand-pointer"></i>
+                    Contrôle manuel
+                </div>
+                <div style="margin-top: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-size: 14px; color: #666;">
+                        Durée (minutes)
+                    </label>
+                    <input type="number" id="manual-duration" value="1" min="0.1" max="10" step="0.1" 
+                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button id="start-pump-btn" class="btn-modern" style="flex: 1; padding: 12px;">
+                            <i class="fas fa-play"></i> Démarrer
+                        </button>
+                        <button id="stop-pump-btn" class="btn-modern btn-modern-secondary" style="flex: 1; padding: 12px;">
+                            <i class="fas fa-stop"></i> Arrêter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphique -->
+        <div class="chart-card">
+            <h3>
+                <i class="fas fa-chart-line"></i>
+                Historique des mesures
+            </h3>
+            <!-- Contrôles de navigation -->
+            <div id="chart-controls" style="display: none; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <button id="zoom-in-btn" class="btn-modern" style="padding: 8px 15px; font-size: 14px;">
+                        <i class="fas fa-search-plus"></i> Zoomer
+                    </button>
+                    <button id="zoom-out-btn" class="btn-modern" style="padding: 8px 15px; font-size: 14px;">
+                        <i class="fas fa-search-minus"></i> Dézoomer
+                    </button>
+                    <button id="reset-zoom-btn" class="btn-modern btn-modern-secondary" style="padding: 8px 15px; font-size: 14px;">
+                        <i class="fas fa-home"></i> Réinitialiser
+                    </button>
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">
+                            <i class="fas fa-sliders-h"></i> Navigation temporelle
+                        </label>
+                        <input type="range" id="time-scrollbar" min="0" max="100" value="0" 
+                               style="width: 100%; height: 8px; border-radius: 5px; background: linear-gradient(135deg, #2d8659 0%, #3da374 100%); outline: none; cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 11px; color: #666;">
+                            <span id="time-start">--</span>
+                            <span id="time-current">--</span>
+                            <span id="time-end">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="chart-container" style="position: relative; height: 400px; width: 100%;">
+                <canvas id="historyChart"></canvas>
+                <div id="chart-empty-message" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #999;">
+                    <i class="fas fa-chart-line" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
+                    <p style="font-size: 16px; margin: 0;">Aucune donnée disponible</p>
+                    <p style="font-size: 12px; margin-top: 5px;">Les données apparaîtront ici une fois que le système aura commencé à enregistrer</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bouton historique -->
+        <div style="text-align: center;">
+            <a href="/arrosage_history" class="btn-modern">
+                <i class="fas fa-history"></i>
+                Historique complet
+            </a>
+            <a href="/export_data?type=all&format=csv" class="btn-modern btn-modern-secondary" download>
+                <i class="fas fa-download"></i>
+                Exporter CSV
+            </a>
+            <a href="/export_data?type=all&format=json" class="btn-modern btn-modern-secondary" download>
+                <i class="fas fa-file-code"></i>
+                Exporter JSON
+            </a>
+        </div>
+    </div>
+
+    <!-- Bouton de bascule mode sombre -->
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le thème">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+
+    <!-- Container pour les notifications -->
+    <div class="notification-container" id="notification-container"></div>
+
+    <script>
+        // Système de notifications
+        function showNotification(type, title, message, duration = 5000) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                warning: 'fa-exclamation-triangle',
+                error: 'fa-times-circle',
+                info: 'fa-info-circle'
+            };
+            
+            notification.innerHTML = `
+                <div class="notification-icon">
+                    <i class="fas ${icons[type] || icons.info}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Auto-suppression après la durée spécifiée
+            if (duration > 0) {
+                setTimeout(() => {
+                    notification.classList.add('hiding');
+                    setTimeout(() => notification.remove(), 300);
+                }, duration);
+            }
+        }
+
+        // Notifications pour les changements d'état
+        let lastPumpStatus = null;
+        let lastSoilHumidity = null;
+        
+        function checkForNotifications(data) {
+            // Notification changement de pompe
+            if (lastPumpStatus !== null && lastPumpStatus !== data.pump_status) {
+                if (data.pump_status === 'Allumée') {
+                    showNotification('info', 'Pompe activée', 'La pompe d\'arrosage a été démarrée', 4000);
+                } else if (data.pump_status === 'Éteinte' && lastPumpStatus === 'Allumée') {
+                    showNotification('success', 'Pompe arrêtée', 'L\'arrosage est terminé', 4000);
+                }
+            }
+            lastPumpStatus = data.pump_status;
+            
+            // Notification humidité du sol critique
+            const soilValue = parseFloat(data.soil_humidity);
+            if (!isNaN(soilValue)) {
+                if (soilValue < 15 && (lastSoilHumidity === null || lastSoilHumidity >= 15)) {
+                    showNotification('error', 'Sol très sec', `Humidité à ${soilValue}% - Arrosage urgent nécessaire`, 8000);
+                } else if (soilValue > 95 && (lastSoilHumidity === null || lastSoilHumidity <= 95)) {
+                    showNotification('warning', 'Sol très humide', `Humidité à ${soilValue}% - Risque de sur-arrosage`, 6000);
+                }
+                lastSoilHumidity = soilValue;
+            }
+        }
+        // Gestion du mode sombre
+        (function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const html = document.documentElement;
+            
+            // Charger le thème sauvegardé
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+            
+            // Basculer le thème
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcon(newTheme);
+            });
+            
+            function updateThemeIcon(theme) {
+                if (themeIcon) {
+                    themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                }
+            }
+        })();
+
+        let historyChart;
+        
+        // Enregistrer le plugin zoom au chargement
+        if (typeof Chart !== 'undefined' && window['chartjs-plugin-zoom']) {
+            Chart.register(window['chartjs-plugin-zoom']);
+        }
+
+        function fetchData() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    // Vérifier les notifications avant de mettre à jour
+                    checkForNotifications(data);
+                    
+                    // Mise à jour des valeurs
+                    document.getElementById('temperature').textContent = data.temperature || '--';
+                    document.getElementById('air_humidity').textContent = data.air_humidity || '--';
+                    document.getElementById('soil_humidity').textContent = data.soil_humidity || '--';
+                    document.getElementById('pump_status').textContent = data.pump_status || 'Inconnu';
+
+                    // Mise à jour de l'humidité du sol avec badge coloré
+                    const soilHumidityElement = document.getElementById('soil_humidity');
+                    const soilStatusText = document.getElementById('soil_status_text');
+                    const soilValue = parseFloat(data.soil_humidity);
+                    
+                    if (!isNaN(soilValue)) {
+                        if (soilValue >= 40) {
+                            soilStatusText.innerHTML = '<i class="fas fa-check-circle" style="color: #2d8659;"></i> Sol humide - Bon niveau';
+                            soilStatusText.style.color = '#2d8659';
+                        } else if (soilValue >= 20) {
+                            soilStatusText.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ff6b35;"></i> Sol modérément sec';
+                            soilStatusText.style.color = '#ff6b35';
+                    } else {
+                            soilStatusText.innerHTML = '<i class="fas fa-times-circle" style="color: #e74c3c;"></i> Sol très sec - Arrosage nécessaire';
+                            soilStatusText.style.color = '#e74c3c';
+                        }
+                    }
+
+                    // Mise à jour du statut de la pompe avec badge coloré
+                    const pumpStatusElement = document.getElementById('pump_status');
+                    const pumpStatusText = document.getElementById('pump_status_text');
+                    
+                    pumpStatusElement.className = 'badge-modern';
+                    if (data.pump_status === "Allumée") {
+                        pumpStatusElement.classList.add('badge-success');
+                        pumpStatusElement.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.pump_status;
+                        pumpStatusText.innerHTML = '<i class="fas fa-info-circle"></i> La pompe est active';
+                    } else {
+                        pumpStatusElement.classList.add('badge-info');
+                        pumpStatusElement.innerHTML = '<i class="fas fa-power-off"></i> ' + (data.pump_status || 'Éteinte');
+                        pumpStatusText.innerHTML = '<i class="fas fa-info-circle"></i> La pompe est inactive';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la récupération des données: ', error);
+                    document.getElementById('temperature').textContent = 'Erreur';
+                    document.getElementById('air_humidity').textContent = 'Erreur';
+                    document.getElementById('soil_humidity').textContent = 'Erreur';
+                    document.getElementById('pump_status').textContent = 'Erreur';
+                });
+        }
+
+        function fetchHistory() {
+            fetch('/temperature_humidity_history')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Données reçues:', data);
+                    
+                    // Vérifier que les données existent
+                    const hasTempData = data.timestamps && data.timestamps.length > 0;
+                    const hasSoilData = data.soil_timestamps && data.soil_timestamps.length > 0;
+                    
+                    if (!hasTempData && !hasSoilData) {
+                        console.warn('Aucune donnée disponible pour l\'historique');
+                        const emptyMsg = document.getElementById('chart-empty-message');
+                        if (emptyMsg) {
+                            emptyMsg.style.display = 'block';
+                        }
+                        if (historyChart) {
+                            historyChart.destroy();
+                            historyChart = null;
+                        }
+                        return;
+                    }
+                    
+                    // Masquer le message vide si des données existent
+                    const emptyMsg = document.getElementById('chart-empty-message');
+                    if (emptyMsg) {
+                        emptyMsg.style.display = 'none';
+                    }
+                    
+                    // Afficher les contrôles si des données existent
+                    const chartControls = document.getElementById('chart-controls');
+                    if (chartControls && (hasTempData || hasSoilData)) {
+                        chartControls.style.display = 'block';
+                    }
+                    
+                    const ctx = document.getElementById('historyChart');
+                    if (!ctx) {
+                        console.error('Canvas historyChart introuvable');
+                        return;
+                    }
+                    
+                    // Fonction helper pour parser et trier les timestamps chronologiquement
+                    function parseAndSortTimestamps(timestamps) {
+                        return timestamps
+                            .map(ts => {
+                                try {
+                                    const date = new Date(ts);
+                                    return { original: ts, date: date, time: date.getTime() };
+                                } catch (e) {
+                                    return null;
+                                }
+                            })
+                            .filter(item => item !== null && !isNaN(item.time))
+                            .sort((a, b) => a.time - b.time)
+                            .map(item => item.original);
+                    }
+                    
+                    // Fonction helper pour formater les timestamps pour l'affichage
+                    function formatTimestampForLabel(timestamp, index, total, previousDate) {
+                        if (!timestamp) return '';
+                        try {
+                            const date = new Date(timestamp);
+                            if (isNaN(date.getTime())) return timestamp;
+                            
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            
+                            // Afficher la date si c'est le premier point ou si le jour a changé
+                            const showDate = !previousDate || 
+                                           previousDate.getDate() !== date.getDate() ||
+                                           previousDate.getMonth() !== date.getMonth() ||
+                                           previousDate.getFullYear() !== date.getFullYear();
+                            
+                            if (showDate) {
+                                return `${day}/${month} ${hours}:${minutes}`;
+                            }
+                            return `${hours}:${minutes}`;
+                        } catch (e) {
+                            return timestamp;
+                        }
+                    }
+                    
+                    // Fonction helper pour formater les timestamps pour les tooltips
+                    function formatTimestampForTooltip(timestamp) {
+                        if (!timestamp) return '';
+                        try {
+                            const date = new Date(timestamp);
+                            if (isNaN(date.getTime())) return timestamp;
+                            
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = date.getFullYear();
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const seconds = String(date.getSeconds()).padStart(2, '0');
+                            
+                            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+                        } catch (e) {
+                            return timestamp;
+                        }
+                    }
+                    
+                    // Préparer et trier chronologiquement tous les timestamps
+                    const allTimestampsRaw = [...new Set([
+                        ...(data.timestamps || []),
+                        ...(data.soil_timestamps || [])
+                    ])];
+                    
+                    const allTimestamps = parseAndSortTimestamps(allTimestampsRaw);
+                    
+                    // Créer les labels avec formatage intelligent - toujours afficher les dates
+                    let previousDate = null;
+                    const labels = allTimestamps.map((timestamp, idx) => {
+                        const date = new Date(timestamp);
+                        // Toujours afficher au format "JJ/MM HH:mm" pour meilleure lisibilité
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const label = `${day}/${month} ${hours}:${minutes}`;
+                        previousDate = date;
+                        return label;
+                    });
+                    
+                    // Stocker les timestamps originaux pour les tooltips
+                    const originalTimestamps = allTimestamps;
+                    
+                    // Créer des maps pour un accès rapide aux données
+                    const tempMap = new Map();
+                    (data.timestamps || []).forEach((ts, idx) => {
+                        if (data.temperatures && data.temperatures[idx] !== undefined) {
+                            tempMap.set(ts, parseFloat(data.temperatures[idx]));
+                        }
+                    });
+                    
+                    const humidityMap = new Map();
+                    (data.timestamps || []).forEach((ts, idx) => {
+                        if (data.humidities && data.humidities[idx] !== undefined) {
+                            humidityMap.set(ts, parseFloat(data.humidities[idx]));
+                        }
+                    });
+                    
+                    const soilMap = new Map();
+                    (data.soil_timestamps || []).forEach((ts, idx) => {
+                        if (data.soil_moistures && data.soil_moistures[idx] !== undefined) {
+                            soilMap.set(ts, parseFloat(data.soil_moistures[idx]));
+                        }
+                    });
+                    
+                    // Préparer les données pour chaque série avec les timestamps triés
+                    const tempData = allTimestamps.map(timestamp => {
+                        const y = tempMap.get(timestamp);
+                        return y !== null && y !== undefined && !isNaN(y) ? y : null;
+                    });
+                    
+                    const humidityData = allTimestamps.map(timestamp => {
+                        const y = humidityMap.get(timestamp);
+                        return y !== null && y !== undefined && !isNaN(y) ? y : null;
+                    });
+                    
+                    const soilData = allTimestamps.map(timestamp => {
+                        const y = soilMap.get(timestamp);
+                        return y !== null && y !== undefined && !isNaN(y) ? y : null;
+                    });
+                    
+                    if (historyChart) {
+                        // Mettre à jour le graphique existant
+                        historyChart.data.labels = labels;
+                        historyChart.data.datasets[0].data = tempData;
+                        historyChart.data.datasets[1].data = humidityData;
+                        historyChart.data.datasets[2].data = soilData;
+                        // Stocker les timestamps originaux pour les tooltips
+                        historyChart.originalTimestamps = originalTimestamps;
+                        historyChart.update('none');
+                        updateTimeScrollbar();
+                    } else {
+                        // Créer un nouveau graphique
+                        historyChart = new Chart(ctx.getContext('2d'), {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Température (°C)',
+                                        data: tempData,
+                                        borderColor: 'rgba(255, 99, 132, 1)',
+                                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                        fill: true,
+                                        tension: 0.4,
+                                        yAxisID: 'y',
+                                        pointRadius: 2,
+                                        pointHoverRadius: 4
+                                    },
+                                    {
+                                        label: 'Humidité de l\'air (%)',
+                                        data: humidityData,
+                                        borderColor: 'rgba(54, 162, 235, 1)',
+                                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                        fill: true,
+                                        tension: 0.4,
+                                        yAxisID: 'y1',
+                                        pointRadius: 2,
+                                        pointHoverRadius: 4
+                                    },
+                                    {
+                                        label: 'Humidité du sol (%)',
+                                        data: soilData,
+                                        borderColor: 'rgba(75, 192, 192, 1)',
+                                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                        fill: true,
+                                        tension: 0.4,
+                                        yAxisID: 'y2',
+                                        pointRadius: 2,
+                                        pointHoverRadius: 4
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: {
+                                    mode: 'index',
+                                    intersect: false,
+                                },
+                                plugins: {
+                                    zoom: {
+                                        pan: {
+                                            enabled: true,
+                                            mode: 'x',
+                                            modifierKey: 'ctrl',
+                                        },
+                                        zoom: {
+                                            wheel: {
+                                                enabled: true,
+                                                modifierKey: 'ctrl',
+                                            },
+                                            pinch: {
+                                                enabled: true
+                                            },
+                                            mode: 'x',
+                                            limits: {
+                                                x: { min: 'original', max: 'original' }
+                                            }
+                                        }
+                                    },
+                                    legend: {
+                                        display: true,
+                                        position: 'top',
+                                        labels: {
+                                            usePointStyle: true,
+                                            padding: 20,
+                                            font: {
+                                                size: 12,
+                                                weight: '600'
+                                            }
+                                        }
+                                    },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                                        padding: 15,
+                                        titleFont: {
+                                            size: 14,
+                                            weight: '600'
+                                        },
+                                        bodyFont: {
+                                            size: 13
+                                        },
+                                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                                        borderWidth: 1,
+                                        cornerRadius: 10,
+                                        displayColors: true,
+                                        callbacks: {
+                                            title: function(context) {
+                                                const index = context[0].dataIndex;
+                                                const chart = context[0].chart;
+                                                const timestamps = chart.originalTimestamps || originalTimestamps;
+                                                if (timestamps && timestamps[index]) {
+                                                    return formatTimestampForTooltip(timestamps[index]);
+                                                }
+                                                return labels[index] || '';
+                                            },
+                                            label: function(context) {
+                                                const label = context.dataset.label || '';
+                                                const value = context.parsed.y;
+                                                if (value === null || isNaN(value)) return '';
+                                                const unit = label.includes('°C') ? '°C' : '%';
+                                                return `${label}: ${value.toFixed(2)} ${unit}`;
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        type: 'category',
+                                        title: {
+                                            display: true,
+                                            text: 'Temps',
+                                            font: {
+                                                size: 13,
+                                                weight: '600',
+                                                color: '#666'
+                                            },
+                                            padding: { top: 10, bottom: 5 }
+                                        },
+                                        grid: {
+                                            color: 'rgba(0, 0, 0, 0.08)',
+                                            drawBorder: false
+                                        },
+                                        ticks: {
+                                            font: {
+                                                size: 10,
+                                                color: '#666'
+                                            },
+                                            maxRotation: 45,
+                                            minRotation: 0,
+                                            maxTicksLimit: 15,
+                                            autoSkip: true,
+                                            autoSkipPadding: 8,
+                                            callback: function(value, index) {
+                                                // Afficher les labels de manière intelligente
+                                                const total = this.getLabels().length;
+                                                if (total <= 15) {
+                                                    // Si peu de points, tout afficher
+                                                    return this.getLabelForValue(value);
+                                                }
+                                                // Sinon, afficher un label sur N
+                                                const step = Math.max(1, Math.floor(total / 12));
+                                                if (index % step === 0 || index === total - 1 || index === 0) {
+                                                    return this.getLabelForValue(value);
+                                                }
+                                                return '';
+                                            }
+                                        }
+                                    },
+                                        y: {
+                                            type: 'linear',
+                                        display: true,
+                                        position: 'left',
+                                        title: {
+                                            display: true,
+                                            text: 'Température (°C)',
+                                            color: 'rgba(255, 99, 132, 1)',
+                                            font: {
+                                                size: 12,
+                                                weight: '600'
+                                            },
+                                            padding: { left: 10, right: 10 }
+                                        },
+                                        grid: {
+                                            color: 'rgba(0, 0, 0, 0.08)',
+                                            drawBorder: false
+                                        },
+                                        ticks: {
+                                            font: {
+                                                size: 10,
+                                                color: '#666'
+                                            },
+                                            precision: 1
+                                        }
+                                    },
+                                    y1: {
+                                            type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        title: {
+                                            display: true,
+                                            text: 'Humidité (%)',
+                                            color: 'rgba(54, 162, 235, 1)',
+                                            font: {
+                                                size: 12,
+                                                weight: '600'
+                                            },
+                                            padding: { left: 10, right: 10 }
+                                        },
+                                        grid: {
+                                                drawOnChartArea: false
+                                        },
+                                        ticks: {
+                                            font: {
+                                                size: 10,
+                                                color: '#666'
+                                            }
+                                        }
+                                    },
+                                    y2: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        title: {
+                                            display: true,
+                                            text: 'Sol (%)',
+                                            color: 'rgba(75, 192, 192, 1)',
+                                            font: {
+                                                size: 12,
+                                                weight: '600'
+                                            },
+                                            padding: { left: 10, right: 10 }
+                                        },
+                                        grid: {
+                                            drawOnChartArea: false
+                                        },
+                                        ticks: {
+                                            font: {
+                                                size: 10,
+                                                color: '#666'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Initialiser la barre de défilement après création du graphique
+                        setTimeout(() => {
+                            initializeTimeScrollbar();
+                            updateTimeScrollbar();
+                        }, 100);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la récupération de l\'historique: ', error);
+                    // Afficher un message d'erreur dans la console pour le débogage
+                    const ctx = document.getElementById('historyChart');
+                    if (ctx && !historyChart) {
+                        const canvas = ctx.getContext('2d');
+                        canvas.fillStyle = '#999';
+                        canvas.font = '16px Arial';
+                        canvas.textAlign = 'center';
+                        canvas.fillText('Erreur de chargement des données', ctx.width / 2, ctx.height / 2);
+                    }
+                });
+        }
+
+        // Fonction pour initialiser la barre de défilement temporelle
+        function initializeTimeScrollbar() {
+            const scrollbar = document.getElementById('time-scrollbar');
+            const timeStart = document.getElementById('time-start');
+            const timeCurrent = document.getElementById('time-current');
+            const timeEnd = document.getElementById('time-end');
+            
+            if (!scrollbar || !historyChart) return;
+            
+            // Mettre à jour les labels de temps
+            if (historyChart.originalTimestamps && historyChart.originalTimestamps.length > 0) {
+                const firstTime = new Date(historyChart.originalTimestamps[0]);
+                const lastTime = new Date(historyChart.originalTimestamps[historyChart.originalTimestamps.length - 1]);
+                
+                timeStart.textContent = formatDateShort(firstTime);
+                timeEnd.textContent = formatDateShort(lastTime);
+            }
+            
+            // Gérer le défilement
+            scrollbar.addEventListener('input', function() {
+                if (!historyChart || !historyChart.data.labels) return;
+                
+                const value = parseFloat(this.value);
+                const max = parseFloat(this.max);
+                const percentage = value / max;
+                
+                // Calculer la plage visible (afficher environ 30% des données)
+                const totalPoints = historyChart.data.labels.length;
+                if (totalPoints === 0) return;
+                
+                const visibleRange = Math.max(5, Math.floor(totalPoints * 0.3));
+                const maxStart = totalPoints - visibleRange;
+                const startIndex = Math.floor(maxStart * percentage);
+                const endIndex = Math.min(startIndex + visibleRange, totalPoints);
+                
+                // Mettre à jour la vue du graphique
+                historyChart.options.scales.x.min = startIndex;
+                historyChart.options.scales.x.max = endIndex;
+                historyChart.update('none');
+                
+                // Mettre à jour le label de temps actuel
+                if (historyChart.originalTimestamps && historyChart.originalTimestamps[startIndex]) {
+                    const currentTime = new Date(historyChart.originalTimestamps[startIndex]);
+                    timeCurrent.textContent = formatDateShort(currentTime);
+                }
+            });
+        }
+        
+        // Fonction pour mettre à jour la barre de défilement
+        function updateTimeScrollbar() {
+            const scrollbar = document.getElementById('time-scrollbar');
+            const timeStart = document.getElementById('time-start');
+            const timeCurrent = document.getElementById('time-current');
+            const timeEnd = document.getElementById('time-end');
+            
+            if (!scrollbar || !historyChart || !historyChart.originalTimestamps) return;
+            
+            const timestamps = historyChart.originalTimestamps;
+            if (timestamps.length === 0) return;
+            
+            const firstTime = new Date(timestamps[0]);
+            const lastTime = new Date(timestamps[timestamps.length - 1]);
+            
+            timeStart.textContent = formatDateShort(firstTime);
+            timeEnd.textContent = formatDateShort(lastTime);
+            
+            // Mettre à jour la position de la barre selon la vue actuelle
+            const min = historyChart.options.scales.x.min;
+            const max = historyChart.options.scales.x.max;
+            const total = timestamps.length;
+            
+            if (min !== undefined && max !== undefined) {
+                const position = (min / (total - (max - min))) * 100;
+                scrollbar.value = Math.max(0, Math.min(100, position));
+                
+                if (timestamps[min]) {
+                    const currentTime = new Date(timestamps[min]);
+                    timeCurrent.textContent = formatDateShort(currentTime);
+                }
+            } else {
+                scrollbar.value = 0;
+                timeCurrent.textContent = formatDateShort(firstTime);
+            }
+        }
+        
+        // Fonction pour formater une date courte
+        function formatDateShort(date) {
+            if (!date || isNaN(date.getTime())) return '--';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}/${month} ${hours}:${minutes}`;
+        }
+        
+        // Boutons de zoom
+        document.addEventListener('DOMContentLoaded', function() {
+            const zoomInBtn = document.getElementById('zoom-in-btn');
+            const zoomOutBtn = document.getElementById('zoom-out-btn');
+            const resetZoomBtn = document.getElementById('reset-zoom-btn');
+            
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', function() {
+                    if (historyChart && historyChart.zoomScale) {
+                        historyChart.zoomScale('x', 1.2);
+                        setTimeout(updateTimeScrollbar, 100);
+                    }
+                });
+            }
+            
+            if (zoomOutBtn) {
+                zoomOutBtn.addEventListener('click', function() {
+                    if (historyChart && historyChart.zoomScale) {
+                        historyChart.zoomScale('x', 0.8);
+                        setTimeout(updateTimeScrollbar, 100);
+                    }
+                });
+            }
+            
+            if (resetZoomBtn) {
+                resetZoomBtn.addEventListener('click', function() {
+                    if (historyChart && historyChart.resetZoom) {
+                        historyChart.resetZoom();
+                        const scrollbar = document.getElementById('time-scrollbar');
+                        if (scrollbar) scrollbar.value = 0;
+                        setTimeout(updateTimeScrollbar, 100);
+                    } else if (historyChart) {
+                        // Fallback si resetZoom n'est pas disponible
+                        historyChart.options.scales.x.min = undefined;
+                        historyChart.options.scales.x.max = undefined;
+                        historyChart.update();
+                        const scrollbar = document.getElementById('time-scrollbar');
+                        if (scrollbar) scrollbar.value = 0;
+                        updateTimeScrollbar();
+                    }
+                });
+            }
+        });
+        
+        // Fonction pour charger les alertes
+        function fetchAlerts() {
+            fetch('/alerts')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('alerts-container');
+                    if (!container) return;
+                    
+                    if (data.alerts && data.alerts.length > 0) {
+                        container.innerHTML = data.alerts.map(alert => {
+                            const bgColor = alert.level === 'danger' ? '#e74c3c' : 
+                                          alert.level === 'warning' ? '#ff6b35' : '#4a90e2';
+                            return `
+                                <div class="status-card" style="background: linear-gradient(135deg, ${bgColor}15 0%, ${bgColor}05 100%); border-left: 4px solid ${bgColor}; margin-bottom: 10px;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="font-size: 24px; color: ${bgColor};">
+                                            <i class="fas ${alert.icon}"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: 600; color: #333; margin-bottom: 5px;">
+                                                ${alert.level === 'danger' ? '⚠️ Alerte Critique' : 
+                                                  alert.level === 'warning' ? '⚠️ Avertissement' : 'ℹ️ Information'}
+                                            </div>
+                                            <div style="color: #666; font-size: 14px;">
+                                                ${alert.message}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        container.style.display = 'block';
+                    } else {
+                        container.innerHTML = '';
+                        container.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des alertes:', error);
+                });
+        }
+
+        // Fonction pour charger les statistiques
+        function fetchStatistics() {
+            fetch('/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('stat-today-waterings').textContent = data.today_waterings || 0;
+                    document.getElementById('stat-total-waterings').textContent = data.total_waterings || 0;
+                    document.getElementById('stat-water-volume').textContent = (data.total_water_volume || 0).toFixed(2) + ' L';
+                    document.getElementById('stat-pump-time').textContent = (data.pump_total_time || 0).toFixed(1) + ' min';
+                    
+                    // Moyennes
+                    if (data.avg_temperature !== null) {
+                        document.getElementById('stat-avg-temp').textContent = data.avg_temperature + '°C';
+                    }
+                    if (data.avg_air_humidity !== null) {
+                        document.getElementById('stat-avg-air').textContent = data.avg_air_humidity + '%';
+                    }
+                    if (data.avg_soil_moisture !== null) {
+                        document.getElementById('stat-avg-soil').textContent = data.avg_soil_moisture + '%';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des statistiques:', error);
+                });
+        }
+        
+        // Fonction pour charger les tendances
+        function fetchTrends() {
+            fetch('/trends')
+                .then(response => response.json())
+                .then(data => {
+                    // Température
+                    if (data.temperature.min !== null) {
+                        document.getElementById('trend-temp-min').textContent = data.temperature.min;
+                        document.getElementById('trend-temp-max').textContent = data.temperature.max;
+                        document.getElementById('trend-temp-avg').textContent = data.temperature.avg;
+                    }
+                    
+                    // Humidité air
+                    if (data.air_humidity.min !== null) {
+                        document.getElementById('trend-hum-min').textContent = data.air_humidity.min;
+                        document.getElementById('trend-hum-max').textContent = data.air_humidity.max;
+                        document.getElementById('trend-hum-avg').textContent = data.air_humidity.avg;
+                    }
+                    
+                    // Humidité sol
+                    if (data.soil_moisture.min !== null) {
+                        document.getElementById('trend-soil-min').textContent = data.soil_moisture.min;
+                        document.getElementById('trend-soil-max').textContent = data.soil_moisture.max;
+                        document.getElementById('trend-soil-avg').textContent = data.soil_moisture.avg;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des tendances:', error);
+                });
+        }
+
+        // Contrôle manuel de la pompe
+        document.addEventListener('DOMContentLoaded', function() {
+            const startBtn = document.getElementById('start-pump-btn');
+            const stopBtn = document.getElementById('stop-pump-btn');
+            const durationInput = document.getElementById('manual-duration');
+            
+            if (startBtn) {
+                startBtn.addEventListener('click', function() {
+                    const duration = parseFloat(durationInput.value) || 1;
+                    if (duration <= 0) {
+                        showNotification('error', 'Erreur', 'La durée doit être supérieure à 0');
+                        return;
+                    }
+                    
+                    startBtn.disabled = true;
+                    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démarrage...';
+                    
+                    fetch('/manual_pump_control', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'start',
+                            duration: duration
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showNotification('success', 'Pompe démarrée', data.message);
+                            fetchData(); // Rafraîchir les données
+                            fetchStatistics(); // Rafraîchir les stats
+                        } else {
+                            showNotification('error', 'Erreur', data.message);
+                        }
+                        startBtn.disabled = false;
+                        startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer';
+                    })
+                    .catch(error => {
+                        console.error('Erreur:', error);
+                        showNotification('error', 'Erreur', 'Erreur lors du démarrage de la pompe');
+                        startBtn.disabled = false;
+                        startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer';
+                    });
+                });
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', function() {
+                    stopBtn.disabled = true;
+                    stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Arrêt...';
+                    
+                    fetch('/manual_pump_control', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            action: 'stop'
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showNotification('success', 'Pompe arrêtée', data.message);
+                            fetchData(); // Rafraîchir les données
+                            fetchStatistics(); // Rafraîchir les stats
+                        } else {
+                            showNotification('error', 'Erreur', data.message);
+                        }
+                        stopBtn.disabled = false;
+                        stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter';
+                    })
+                    .catch(error => {
+                        console.error('Erreur:', error);
+                        showNotification('error', 'Erreur', 'Erreur lors de l\'arrêt de la pompe');
+                        stopBtn.disabled = false;
+                        stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter';
+                    });
+                });
+            }
+        });
+
+        // Mise à jour automatique
+        setInterval(fetchData, 5000);
+        setInterval(fetchHistory, 60000);
+        setInterval(fetchStatistics, 30000); // Mettre à jour les stats toutes les 30 secondes
+        setInterval(fetchTrends, 60000); // Mettre à jour les tendances toutes les minutes
+        setInterval(fetchAlerts, 10000); // Mettre à jour les alertes toutes les 10 secondes
+        
+        // Chargement initial
+        fetchData();
+        fetchHistory();
+        fetchStatistics();
+        fetchTrends();
+        fetchAlerts();
+    </script>
+    
+    <style>
+        /* Style pour la barre de défilement */
+        #time-scrollbar {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #e0e0e0 0%, #f0f0f0 100%);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        #time-scrollbar:hover {
+            background: linear-gradient(135deg, #d0d0d0 0%, #e0e0e0 100%);
+        }
+        
+        #time-scrollbar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(45, 134, 89, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        #time-scrollbar::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 8px rgba(45, 134, 89, 0.5);
+        }
+        
+        #time-scrollbar::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(45, 134, 89, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        #time-scrollbar::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 8px rgba(45, 134, 89, 0.5);
+        }
+    </style>
+</body>
+</html>

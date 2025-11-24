@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌐 Nœuds ESP32 - Système d'Arrosage</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .nodes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 25px;
+        }
+        
+        .node-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .node-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .node-card.offline {
+            opacity: 0.6;
+            border-color: #e74c3c;
+        }
+        
+        .node-card.online {
+            border-color: var(--primary-green);
+        }
+        
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .node-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .node-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .node-status.online {
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            color: white;
+        }
+        
+        .node-status.offline {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .node-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .node-info-item {
+            text-align: center;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+        }
+        
+        .node-info-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .node-info-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .node-info-unit {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-left: 4px;
+        }
+        
+        .node-battery {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .battery-level {
+            flex: 1;
+            height: 20px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c 0%, #f39c12 50%, #2d8659 100%);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .node-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .node-controls button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-water {
+            background: linear-gradient(135deg, #2d8659 0%, #3da374 100%);
+            color: white;
+        }
+        
+        .btn-water:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(45, 134, 89, 0.3);
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .node-chart {
+            margin-top: 20px;
+            height: 150px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(45, 134, 89, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1) rotate(180deg);
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Correction pour éviter la remontée du lien actif */
+        .sidebar a.active {
+            transform: translateX(5px) !important;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* S'assurer qu'il n'y a qu'un seul bouton theme-toggle */
+        .theme-toggle {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            z-index: 1001 !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h2><i class="fas fa-seedling"></i> HomeGarden</h2>
+            <p>Système d'Arrosage Automatique</p>
+        </div>
+        <a href="/">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/nodes" class="active">
+            <i class="fas fa-network-wired"></i>
+            <span>Nœuds ESP32</span>
+        </a>
+        <a href="/configuration">
+            <i class="fas fa-cog"></i>
+            <span>Configuration</span>
+        </a>
+        <a href="/settings">
+            <i class="fas fa-sliders-h"></i>
+            <span>Paramètres</span>
+        </a>
+        <a href="/arrosage_history">
+            <i class="fas fa-history"></i>
+            <span>Historique</span>
+        </a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="content fade-in">
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-network-wired"></i> Nœuds ESP32</h1>
+                <p style="margin-top: 10px; color: #666;">Gestion et surveillance de tous les nœuds distants</p>
+            </div>
+            <div class="header-icon">
+                <i class="fas fa-microchip"></i>
+            </div>
+        </div>
+
+        <!-- Grille des nœuds -->
+        <div id="nodes-container">
+            <div class="empty-state" id="empty-state">
+                <i class="fas fa-network-wired"></i>
+                <h3>Aucun nœud détecté</h3>
+                <p>Les nœuds ESP32 apparaîtront ici une fois connectés au réseau</p>
+            </div>
+            <div class="nodes-grid" id="nodes-grid" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Bouton de rafraîchissement -->
+    <button class="refresh-btn" id="refresh-btn" onclick="loadNodes()" title="Rafraîchir">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+
+    <!-- Bouton de bascule mode sombre -->
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le thème">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+
+    <!-- Container pour les notifications -->
+    <div class="notification-container" id="notification-container"></div>
+
+    <script>
+        // Gestion du mode sombre
+        (function() {
+            // Vérifier qu'il n'y a qu'un seul bouton theme-toggle
+            const existingToggle = document.querySelector('.theme-toggle');
+            if (existingToggle && existingToggle.id !== 'theme-toggle') {
+                existingToggle.remove(); // Supprimer les doublons
+            }
+            
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const html = document.documentElement;
+            
+            if (!themeToggle || !themeIcon) return; // Sortir si les éléments n'existent pas
+            
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            });
+        })();
+
+        // Système de notifications
+        function showNotification(type, title, message, duration = 5000) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const icons = {
+                success: 'fa-check-circle',
+                warning: 'fa-exclamation-triangle',
+                error: 'fa-times-circle',
+                info: 'fa-info-circle'
+            };
+            
+            notification.innerHTML = `
+                <div class="notification-icon">
+                    <i class="fas ${icons[type] || icons.info}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-title">${title}</div>
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(notification);
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    notification.classList.add('hiding');
+                    setTimeout(() => notification.remove(), 300);
+                }, duration);
+            }
+        }
+
+        let nodeCharts = {};
+
+        function loadNodes() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.classList.add('spinning');
+            
+            fetch('/api/nodes')
+                .then(response => response.json())
+                .then(data => {
+                    refreshBtn.classList.remove('spinning');
+                    
+                    if (data.status === 'success' && data.nodes) {
+                        const nodes = Object.values(data.nodes);
+                        renderNodes(nodes);
+                    } else {
+                        showEmptyState();
+                    }
+                })
+                .catch(error => {
+                    refreshBtn.classList.remove('spinning');
+                    console.error('Erreur lors du chargement des nœuds:', error);
+                    showNotification('error', 'Erreur', 'Impossible de charger les nœuds');
+                    showEmptyState();
+                });
+        }
+
+        function showEmptyState() {
+            document.getElementById('empty-state').style.display = 'block';
+            document.getElementById('nodes-grid').style.display = 'none';
+        }
+
+        function renderNodes(nodes) {
+            const container = document.getElementById('nodes-grid');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (nodes.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            container.style.display = 'grid';
+            
+            container.innerHTML = nodes.map(node => {
+                const isOnline = node.status === 'online';
+                const lastSeen = node.last_seen ? new Date(node.last_seen) : null;
+                const lastSeenText = lastSeen ? 
+                    `Vu il y a ${getTimeAgo(lastSeen)}` : 
+                    'Jamais connecté';
+                
+                return `
+                    <div class="node-card ${isOnline ? 'online' : 'offline'}" data-node-id="${node.id}">
+                        <div class="node-header">
+                            <div>
+                                <h3 class="node-title">${node.name || node.id}</h3>
+                                <p style="margin: 5px 0 0 0; font-size: 12px; color: var(--text-secondary);">
+                                    <i class="fas fa-map-marker-alt"></i> ${node.location || 'Non spécifié'}
+                                </p>
+                            </div>
+                            <span class="node-status ${isOnline ? 'online' : 'offline'}">
+                                <i class="fas fa-circle" style="font-size: 8px;"></i>
+                                ${isOnline ? 'En ligne' : 'Hors ligne'}
+                            </span>
+                        </div>
+                        
+                        <div class="node-info">
+                            <div class="node-info-item">
+                                <div class="node-info-label">
+                                    <i class="fas fa-thermometer-half"></i> Température
+                                </div>
+                                <div class="node-info-value" id="temp-${node.id}">--</div>
+                            </div>
+                            <div class="node-info-item">
+                                <div class="node-info-label">
+                                    <i class="fas fa-tint"></i> Humidité air
+                                </div>
+                                <div class="node-info-value" id="hum-${node.id}">--<span class="node-info-unit">%</span></div>
+                            </div>
+                            <div class="node-info-item">
+                                <div class="node-info-label">
+                                    <i class="fas fa-water"></i> Humidité sol
+                                </div>
+                                <div class="node-info-value" id="soil-${node.id}">--<span class="node-info-unit">%</span></div>
+                            </div>
+                            <div class="node-info-item">
+                                <div class="node-info-label">
+                                    <i class="fas fa-pump-water"></i> Pompe
+                                </div>
+                                <div class="node-info-value" id="pump-${node.id}">--</div>
+                            </div>
+                        </div>
+                        
+                        ${node.battery_level !== null ? `
+                        <div class="node-battery">
+                            <i class="fas fa-battery-${getBatteryIcon(node.battery_level)}" style="font-size: 20px;"></i>
+                            <div class="battery-level">
+                                <div class="battery-fill" style="width: ${node.battery_level}%"></div>
+                            </div>
+                            <span style="font-weight: 600; font-size: 14px;">${node.battery_level}%</span>
+                            ${node.solar_charging ? '<i class="fas fa-sun" style="color: #f39c12;"></i>' : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 15px;">
+                            <i class="fas fa-clock"></i> ${lastSeenText}
+                            ${node.ip_address ? ` | <i class="fas fa-network-wired"></i> ${node.ip_address}` : ''}
+                        </div>
+                        
+                        <div class="node-controls">
+                            <button class="btn-water" onclick="controlNode('${node.id}', 'start', 1)">
+                                <i class="fas fa-play"></i> Arroser (1min)
+                            </button>
+                            <button class="btn-stop" onclick="controlNode('${node.id}', 'stop')">
+                                <i class="fas fa-stop"></i> Arrêter
+                            </button>
+                        </div>
+                        
+                        <div class="node-chart">
+                            <canvas id="chart-${node.id}"></canvas>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Charger les données de chaque nœud
+            nodes.forEach(node => {
+                loadNodeData(node.id);
+                loadNodeHistory(node.id);
+            });
+        }
+
+        function loadNodeData(nodeId) {
+            fetch(`/api/nodes/${nodeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.node) {
+                        const node = data.node;
+                        
+                        // Mettre à jour les valeurs affichées
+                        const tempEl = document.getElementById(`temp-${nodeId}`);
+                        const humEl = document.getElementById(`hum-${nodeId}`);
+                        const soilEl = document.getElementById(`soil-${nodeId}`);
+                        const pumpEl = document.getElementById(`pump-${nodeId}`);
+                        
+                        if (tempEl && node.history && node.history.temperatures) {
+                            const lastTemp = node.history.temperatures[node.history.temperatures.length - 1];
+                            tempEl.textContent = lastTemp !== null && lastTemp !== undefined ? 
+                                `${lastTemp.toFixed(1)}°C` : '--';
+                        }
+                        
+                        if (humEl && node.history && node.history.humidities) {
+                            const lastHum = node.history.humidities[node.history.humidities.length - 1];
+                            humEl.innerHTML = lastHum !== null && lastHum !== undefined ? 
+                                `${lastHum.toFixed(1)}<span class="node-info-unit">%</span>` : '--';
+                        }
+                        
+                        if (soilEl && node.history && node.history.soil_moistures) {
+                            const lastSoil = node.history.soil_moistures[node.history.soil_moistures.length - 1];
+                            if (lastSoil && lastSoil.moisture !== null) {
+                                soilEl.innerHTML = `${lastSoil.moisture.toFixed(1)}<span class="node-info-unit">%</span>`;
+                            }
+                        }
+                        
+                        if (pumpEl) {
+                            // Le statut de la pompe sera mis à jour via les données en temps réel
+                            pumpEl.textContent = '--';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erreur lors du chargement des données du nœud ${nodeId}:`, error);
+                });
+        }
+
+        function loadNodeHistory(nodeId) {
+            fetch(`/api/nodes/${nodeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.node && data.node.history) {
+                        const history = data.node.history;
+                        createNodeChart(nodeId, history);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erreur lors du chargement de l'historique du nœud ${nodeId}:`, error);
+                });
+        }
+
+        function createNodeChart(nodeId, history) {
+            const canvas = document.getElementById(`chart-${nodeId}`);
+            if (!canvas) return;
+            
+            // Détruire le graphique existant
+            if (nodeCharts[nodeId]) {
+                nodeCharts[nodeId].destroy();
+            }
+            
+            // Préparer les données
+            const timestamps = history.timestamps || [];
+            const temperatures = history.temperatures || [];
+            const humidities = history.humidities || [];
+            const soilMoistures = (history.soil_moistures || []).map(s => s ? s.moisture : null);
+            
+            // Prendre les 20 dernières valeurs
+            const limit = 20;
+            const recentTimestamps = timestamps.slice(-limit);
+            const recentTemps = temperatures.slice(-limit);
+            const recentHums = humidities.slice(-limit);
+            const recentSoils = soilMoistures.slice(-limit);
+            
+            nodeCharts[nodeId] = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: recentTimestamps.map(ts => {
+                        const date = new Date(ts);
+                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    }),
+                    datasets: [
+                        {
+                            label: 'Sol (%)',
+                            data: recentSoils,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                font: { size: 10 }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 9 },
+                                maxTicksLimit: 5
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function controlNode(nodeId, action, duration = 1) {
+            fetch(`/api/nodes/${nodeId}/control`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: action,
+                    duration: duration
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('success', 'Commande envoyée', 
+                        `Commande ${action} envoyée au nœud ${nodeId}`);
+                    // Recharger les données après un court délai
+                    setTimeout(() => loadNodeData(nodeId), 2000);
+                } else {
+                    showNotification('error', 'Erreur', data.message || 'Erreur lors de l\'envoi de la commande');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showNotification('error', 'Erreur', 'Impossible d\'envoyer la commande');
+            });
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return `${diff} seconde${diff > 1 ? 's' : ''}`;
+            if (diff < 3600) return `${Math.floor(diff / 60)} minute${Math.floor(diff / 60) > 1 ? 's' : ''}`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)} heure${Math.floor(diff / 3600) > 1 ? 's' : ''}`;
+            return `${Math.floor(diff / 86400)} jour${Math.floor(diff / 86400) > 1 ? 's' : ''}`;
+        }
+
+        function getBatteryIcon(level) {
+            if (level > 75) return 'full';
+            if (level > 50) return 'three-quarters';
+            if (level > 25) return 'half';
+            if (level > 10) return 'quarter';
+            return 'empty';
+        }
+
+        // Chargement initial et rafraîchissement périodique
+        loadNodes();
+        setInterval(loadNodes, 30000); // Rafraîchir toutes les 30 secondes
+    </script>
+</body>
+</html>
+

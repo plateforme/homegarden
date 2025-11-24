@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Paramètres - Système d'Arrosage</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .settings-section {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 25px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        .schedule-item {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .schedule-item.enabled {
+            border-color: var(--primary-green);
+        }
+        
+        .day-selector {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        
+        .day-button {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .day-button.active {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%);
+            color: white;
+            border-color: var(--primary-green);
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h2><i class="fas fa-seedling"></i> HomeGarden</h2>
+            <p>Système d'Arrosage Automatique</p>
+        </div>
+        <a href="/">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/nodes">
+            <i class="fas fa-network-wired"></i>
+            <span>Nœuds ESP32</span>
+        </a>
+        <a href="/configuration">
+            <i class="fas fa-cog"></i>
+            <span>Configuration</span>
+        </a>
+        <a href="/settings" class="active">
+            <i class="fas fa-sliders-h"></i>
+            <span>Paramètres</span>
+        </a>
+        <a href="/arrosage_history">
+            <i class="fas fa-history"></i>
+            <span>Historique</span>
+        </a>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="content fade-in">
+        <!-- Header -->
+        <div class="page-header">
+            <div>
+                <h1><i class="fas fa-sliders-h"></i> Paramètres du Système</h1>
+                <p style="margin-top: 10px; color: var(--text-secondary);">Configurez les modes et la planification d'arrosage</p>
+            </div>
+            <div class="header-icon">
+                <i class="fas fa-cog"></i>
+            </div>
+        </div>
+
+        <!-- Mode Maintenance -->
+        <div class="settings-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <h3 style="margin: 0; color: var(--text-primary);">
+                        <i class="fas fa-tools"></i> Mode Maintenance
+                    </h3>
+                    <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 14px;">
+                        Désactive temporairement l'arrosage automatique
+                    </p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="maintenance-mode">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Mode Vacances -->
+        <div class="settings-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <h3 style="margin: 0; color: var(--text-primary);">
+                        <i class="fas fa-umbrella-beach"></i> Mode Vacances
+                    </h3>
+                    <p style="margin: 5px 0 0 0; color: var(--text-secondary); font-size: 14px;">
+                        Réduit la durée d'arrosage de 50% pour économiser l'eau
+                    </p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="vacation-mode">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Protection anti-arrosage excessif -->
+        <div class="settings-section">
+            <h3 style="margin: 0 0 20px 0; color: var(--text-primary);">
+                <i class="fas fa-shield-alt"></i> Protection Anti-Arrosage Excessif
+            </h3>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <label style="flex: 1; color: var(--text-secondary);">
+                    Délai minimum entre arrosages (minutes)
+                </label>
+                <input type="number" id="min-interval" min="5" max="1440" step="5" 
+                       style="width: 150px; padding: 10px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary);">
+            </div>
+            <p style="margin-top: 10px; color: var(--text-muted); font-size: 13px;">
+                <i class="fas fa-info-circle"></i> Empêche les arrosages trop fréquents pour protéger les plantes
+            </p>
+        </div>
+
+        <!-- Planification d'arrosage -->
+        <div class="settings-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--text-primary);">
+                    <i class="fas fa-calendar-alt"></i> Planification d'Arrosage
+                </h3>
+                <button class="btn-modern" onclick="addSchedule()" style="padding: 10px 20px;">
+                    <i class="fas fa-plus"></i> Ajouter
+                </button>
+            </div>
+            <div id="schedules-list"></div>
+        </div>
+
+        <!-- Bouton sauvegarder -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn-modern" onclick="saveSettings()" style="padding: 15px 40px; font-size: 16px;">
+                <i class="fas fa-save"></i> Enregistrer les Paramètres
+            </button>
+        </div>
+    </div>
+
+    <!-- Bouton de bascule mode sombre -->
+    <button class="theme-toggle" id="theme-toggle" title="Basculer le thème">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </button>
+
+    <!-- Notification de succès -->
+    <div id="save-success" class="save-success" style="display: none;">
+        <i class="fas fa-check-circle"></i> Paramètres enregistrés avec succès !
+    </div>
+
+    <script>
+        // Gestion du mode sombre
+        (function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const themeIcon = document.getElementById('theme-icon');
+            const html = document.documentElement;
+            
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            if (themeIcon) {
+                themeIcon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            });
+        })();
+
+        let schedules = [];
+        const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+        // Charger les paramètres
+        function loadSettings() {
+            fetch('/get_settings')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('maintenance-mode').checked = data.maintenance_mode || false;
+                    document.getElementById('vacation-mode').checked = data.vacation_mode || false;
+                    document.getElementById('min-interval').value = data.min_watering_interval || 30;
+                    schedules = data.scheduled_waterings || [];
+                    renderSchedules();
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des paramètres:', error);
+                });
+        }
+
+        // Rendre la liste des planifications
+        function renderSchedules() {
+            const container = document.getElementById('schedules-list');
+            if (schedules.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">Aucune planification configurée</p>';
+                return;
+            }
+
+            container.innerHTML = schedules.map((schedule, index) => {
+                const daysHtml = dayNames.map((day, dayIndex) => {
+                    const isActive = schedule.days.includes(day);
+                    return `<button class="day-button ${isActive ? 'active' : ''}" onclick="toggleDay(${index}, '${day}')">${dayLabels[dayIndex]}</button>`;
+                }).join('');
+
+                return `
+                    <div class="schedule-item ${schedule.enabled ? 'enabled' : ''}">
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${schedule.enabled ? 'checked' : ''} onchange="toggleSchedule(${index})">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                <input type="time" value="${schedule.time}" onchange="updateScheduleTime(${index}, this.value)" 
+                                       style="padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary);">
+                                <input type="number" value="${schedule.duration}" min="0.1" max="60" step="0.1" 
+                                       onchange="updateScheduleDuration(${index}, this.value)"
+                                       style="width: 100px; padding: 8px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-card); color: var(--text-primary);">
+                                <span style="color: var(--text-secondary);">minutes</span>
+                            </div>
+                            <div class="day-selector">
+                                ${daysHtml}
+                            </div>
+                        </div>
+                        <button class="btn-modern btn-modern-secondary" onclick="removeSchedule(${index})" style="padding: 8px 15px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addSchedule() {
+            schedules.push({
+                enabled: true,
+                time: '08:00',
+                duration: 1,
+                days: []
+            });
+            renderSchedules();
+        }
+
+        function removeSchedule(index) {
+            schedules.splice(index, 1);
+            renderSchedules();
+        }
+
+        function toggleSchedule(index) {
+            schedules[index].enabled = !schedules[index].enabled;
+            renderSchedules();
+        }
+
+        function toggleDay(index, day) {
+            const schedule = schedules[index];
+            const dayIndex = schedule.days.indexOf(day);
+            if (dayIndex > -1) {
+                schedule.days.splice(dayIndex, 1);
+            } else {
+                schedule.days.push(day);
+            }
+            renderSchedules();
+        }
+
+        function updateScheduleTime(index, time) {
+            schedules[index].time = time;
+        }
+
+        function updateScheduleDuration(index, duration) {
+            schedules[index].duration = parseFloat(duration);
+        }
+
+        function saveSettings() {
+            const settings = {
+                maintenance_mode: document.getElementById('maintenance-mode').checked,
+                vacation_mode: document.getElementById('vacation-mode').checked,
+                min_watering_interval: parseInt(document.getElementById('min-interval').value),
+                scheduled_waterings: schedules
+            };
+
+            fetch('/update_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const successDiv = document.getElementById('save-success');
+                    successDiv.style.display = 'block';
+                    setTimeout(() => {
+                        successDiv.style.display = 'none';
+                    }, 3000);
+                } else {
+                    alert('Erreur: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors de l\'enregistrement des paramètres');
+            });
+        }
+
+        // Charger les paramètres au démarrage
+        loadSettings();
+    </script>
+</body>
+</html>
+
