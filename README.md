@@ -1,25 +1,85 @@
-# 🌱 Système d'Arrosage Automatique
+# 🌱 HomeGarden - Système d'Arrosage Automatique Intelligent
 
-Système d'arrosage automatique pour Raspberry Pi avec interface web Flask.
+**English version below** 👇
 
-## 🚀 Démarrage Rapide
+---
 
-### Via SSH
+## 🇫🇷 Français
 
-```bash
-# Se connecter au Raspberry Pi
-ssh pi@votre_adresse_ip
+### 🎯 Vue d'ensemble
 
-# Aller dans le dossier du projet
-cd /home/gregory/homegarden
+HomeGarden est un système d'arrosage automatique intelligent pour plantes d'intérieur et jardins. Il supporte une architecture **multi-nœuds** avec des ESP32 pour surveiller et contrôler plusieurs zones indépendamment.
 
-# Lancer le système (choisissez une méthode)
-./start.sh                    # Script interactif (recommandé)
-python3 app.py                # Mode simple
-nohup python3 app.py > app.log 2>&1 &  # Mode arrière-plan
+### ✨ Fonctionnalités principales
+
+- ✅ **Surveillance automatique** de l'humidité du sol, température et humidité de l'air
+- ✅ **Contrôle intelligent** de la pompe d'arrosage avec scénarios personnalisables par type de plante
+- ✅ **Architecture multi-nœuds** : 1 hub central (Raspberry Pi) + jusqu'à 10+ nœuds ESP32
+- ✅ **Interface web complète** avec graphiques en temps réel et historique
+- ✅ **API REST** pour intégration et contrôle à distance
+- ✅ **Planification d'arrosages** avec horaires personnalisables
+- ✅ **Modes avancés** : Maintenance, Vacances avec réduction automatique
+- ✅ **Alimentation solaire** supportée pour les nœuds ESP32
+- ✅ **Économie d'énergie** avec mode Deep Sleep sur ESP32
+
+### 🏗️ Architecture Multi-Nœuds
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              Raspberry Pi (Hub Central)                  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Flask Web Server (Port 5000)                   │   │
+│  │  - Interface Web                                │   │
+│  │  - API REST (/api/nodes/*)                     │   │
+│  │  - Base de données (JSON + CSV)                │   │
+│  │  - Logique de décision centralisée             │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Capteurs locaux (optionnel)                    │   │
+│  │  - DHT11, ADS1115, Pompe GPIO18                │   │
+│  └──────────────────────────────────────────────────┘   │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+            ┌───────────┴───────────┐
+            │     WiFi / HTTP       │
+            │                       │
+    ┌───────┴────────┐    ┌──────────┴────────┐
+    │               │    │                   │
+┌───▼──────┐  ┌─────▼─────┐  ┌─────▼──────┐
+│ ESP32 #1 │  │ ESP32 #2 │  │ ESP32 #3   │
+│          │  │          │  │            │
+│ DHT11    │  │ DHT11    │  │ DHT11      │
+│ Sol      │  │ Sol      │  │ Sol        │
+│ Pompe    │  │ Pompe    │  │ Pompe      │
+│ Batterie │  │ Batterie │  │ Batterie   │
+│ Solaire  │  │ Solaire  │  │ Solaire    │
+└──────────┘  └──────────┘  └────────────┘
 ```
 
-### Scripts Utiles
+### 🚀 Démarrage Rapide
+
+#### Installation des dépendances
+
+```bash
+cd /home/gregory/homegarden
+pip3 install -r requirements.txt
+```
+
+#### Lancement du système
+
+```bash
+# Méthode recommandée (menu interactif)
+./start.sh
+
+# Ou directement
+python3 app.py
+
+# Ou en arrière-plan
+nohup python3 app.py > app.log 2>&1 &
+```
+
+#### Scripts utiles
 
 ```bash
 ./start.sh    # Démarrer le système (menu interactif)
@@ -27,63 +87,308 @@ nohup python3 app.py > app.log 2>&1 &  # Mode arrière-plan
 ./status.sh   # Vérifier le statut du système
 ```
 
-## 📖 Documentation Complète
+#### Accès à l'interface web
 
-Consultez le **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)** pour :
-- Instructions détaillées
-- Méthodes de démarrage (simple, arrière-plan, screen)
-- Configuration
-- Dépannage
-- Démarrage automatique au boot
-
-## 🌐 Interface Web
-
-Une fois le système démarré, accédez à l'interface web :
-
+Une fois le système démarré, accédez à :
 ```
 http://votre_adresse_ip:5000
 ```
 
-## 📋 Fonctionnalités
+### 🔧 Matériel Requis
 
-- ✅ Surveillance automatique de l'humidité du sol
-- ✅ Contrôle automatique de la pompe d'arrosage
-- ✅ Mesure de température et humidité de l'air (DHT11)
-- ✅ Interface web en temps réel
-- ✅ Historique des arrosages
-- ✅ Graphiques de données
-- ✅ Configuration du seuil d'humidité
-
-## 🔧 Matériel Requis
-
-- Raspberry Pi
+#### Hub Central (Raspberry Pi)
+- Raspberry Pi (modèle 3 ou supérieur)
 - Capteur d'humidité du sol (via ADS1115)
 - Capteur DHT11 (température/humidité air)
-- Pompe d'arrosage (relais sur GPIO 18)
+- Pompe d'arrosage avec relais (GPIO 18)
 - Connexions I2C pour ADS1115
 
-## 📦 Installation des Dépendances
+#### Nœuds ESP32 (optionnel, pour architecture multi-nœuds)
+- ESP32 Dev Module
+- Capteur DHT11
+- Capteur d'humidité du sol (analogique)
+- Relais pour pompe
+- Module de charge solaire (optionnel)
+- Batterie LiPo 2000-5000 mAh (optionnel)
 
-```bash
-pip3 install -r requirements.txt
-```
+### 📡 API Multi-Nœuds
 
-## ⚙️ Configuration
+Le système expose une API REST complète pour la gestion des nœuds ESP32 :
 
-Le seuil d'humidité peut être modifié :
-- Via l'interface web : `http://IP:5000/configuration`
-- Via le fichier `config.json`
+- `POST /api/nodes/register` - Enregistrement d'un nœud
+- `POST /api/nodes/{node_id}/data` - Réception des données d'un nœud
+- `GET /api/nodes` - Liste de tous les nœuds
+- `GET /api/nodes/{node_id}` - Informations d'un nœud spécifique
+- `POST /api/nodes/{node_id}/control` - Contrôle manuel (pompe)
 
-## 📝 Logs
+Voir [ARCHITECTURE_MULTI_NODES.md](ARCHITECTURE_MULTI_NODES.md) pour plus de détails.
+
+### ⚙️ Configuration
+
+#### Configuration via interface web
+- Accédez à `http://IP:5000/configuration`
+- Modifiez les scénarios, seuils, modes et planifications
+
+#### Configuration via fichiers
+- `config.json` : Configuration générale
+- `data.json` : Scénarios, modes, planification
+- `nodes.json` : Registre des nœuds ESP32
+
+### 📝 Logs et Données
 
 Les données sont enregistrées dans :
 - `arrosage_log.csv` : Historique des arrosages
 - `temp_humidity_log.csv` : Température et humidité de l'air
 - `soil_moisture_log.csv` : Humidité du sol
-- `app.log` : Logs du système (si lancé avec nohup)
+- `nodes_data/{node_id}_*.csv` : Données par nœud ESP32
+- `app.log` : Logs du système
 
-## 🆘 Aide
+### 📖 Documentation Complète
 
-Pour plus d'informations, consultez le **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)**.
+- **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)** - Guide complet de démarrage et configuration
+- **[ARCHITECTURE_MULTI_NODES.md](ARCHITECTURE_MULTI_NODES.md)** - Architecture détaillée multi-nœuds
+- **[GUIDE_MULTI_NODES.md](GUIDE_MULTI_NODES.md)** - Guide de démarrage multi-nœuds
+- **[FONCTIONNALITES.md](FONCTIONNALITES.md)** - Liste complète des fonctionnalités
+- **[esp32_node/README.md](esp32_node/README.md)** - Documentation ESP32
 
+### 🆘 Dépannage
 
+Consultez le **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)** pour :
+- Instructions détaillées
+- Méthodes de démarrage
+- Configuration
+- Dépannage
+- Démarrage automatique au boot
+
+---
+
+## 🇬🇧 English
+
+### 🎯 Overview
+
+HomeGarden is an intelligent automatic watering system for indoor plants and gardens. It supports a **multi-node architecture** with ESP32 devices to monitor and control multiple zones independently.
+
+### ✨ Key Features
+
+- ✅ **Automatic monitoring** of soil moisture, temperature, and air humidity
+- ✅ **Intelligent control** of watering pump with customizable scenarios per plant type
+- ✅ **Multi-node architecture**: 1 central hub (Raspberry Pi) + up to 10+ ESP32 nodes
+- ✅ **Complete web interface** with real-time graphs and history
+- ✅ **REST API** for integration and remote control
+- ✅ **Scheduled watering** with customizable times
+- ✅ **Advanced modes**: Maintenance, Vacation with automatic reduction
+- ✅ **Solar power** support for ESP32 nodes
+- ✅ **Energy saving** with Deep Sleep mode on ESP32
+
+### 🏗️ Multi-Node Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              Raspberry Pi (Central Hub)                 │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Flask Web Server (Port 5000)                   │   │
+│  │  - Web Interface                                │   │
+│  │  - REST API (/api/nodes/*)                     │   │
+│  │  - Database (JSON + CSV)                       │   │
+│  │  - Centralized decision logic                   │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Local sensors (optional)                       │   │
+│  │  - DHT11, ADS1115, Pump GPIO18                 │   │
+│  └──────────────────────────────────────────────────┘   │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+            ┌───────────┴───────────┐
+            │     WiFi / HTTP       │
+            │                       │
+    ┌───────┴────────┐    ┌──────────┴────────┐
+    │               │    │                   │
+┌───▼──────┐  ┌─────▼─────┐  ┌─────▼──────┐
+│ ESP32 #1 │  │ ESP32 #2 │  │ ESP32 #3   │
+│          │  │          │  │            │
+│ DHT11    │  │ DHT11    │  │ DHT11      │
+│ Soil     │  │ Soil     │  │ Soil       │
+│ Pump     │  │ Pump     │  │ Pump       │
+│ Battery  │  │ Battery  │  │ Battery    │
+│ Solar    │  │ Solar    │  │ Solar      │
+└──────────┘  └──────────┘  └────────────┘
+```
+
+### 🚀 Quick Start
+
+#### Install dependencies
+
+```bash
+cd /home/gregory/homegarden
+pip3 install -r requirements.txt
+```
+
+#### Launch the system
+
+```bash
+# Recommended method (interactive menu)
+./start.sh
+
+# Or directly
+python3 app.py
+
+# Or in background
+nohup python3 app.py > app.log 2>&1 &
+```
+
+#### Useful scripts
+
+```bash
+./start.sh    # Start the system (interactive menu)
+./stop.sh     # Stop the system
+./status.sh   # Check system status
+```
+
+#### Access web interface
+
+Once the system is started, access:
+```
+http://your_ip_address:5000
+```
+
+### 🔧 Required Hardware
+
+#### Central Hub (Raspberry Pi)
+- Raspberry Pi (model 3 or higher)
+- Soil moisture sensor (via ADS1115)
+- DHT11 sensor (air temperature/humidity)
+- Watering pump with relay (GPIO 18)
+- I2C connections for ADS1115
+
+#### ESP32 Nodes (optional, for multi-node architecture)
+- ESP32 Dev Module
+- DHT11 sensor
+- Soil moisture sensor (analog)
+- Relay for pump
+- Solar charging module (optional)
+- LiPo battery 2000-5000 mAh (optional)
+
+### 📡 Multi-Node API
+
+The system exposes a complete REST API for managing ESP32 nodes:
+
+- `POST /api/nodes/register` - Register a node
+- `POST /api/nodes/{node_id}/data` - Receive data from a node
+- `GET /api/nodes` - List all nodes
+- `GET /api/nodes/{node_id}` - Information about a specific node
+- `POST /api/nodes/{node_id}/control` - Manual control (pump)
+
+See [ARCHITECTURE_MULTI_NODES.md](ARCHITECTURE_MULTI_NODES.md) for more details.
+
+### ⚙️ Configuration
+
+#### Configuration via web interface
+- Access `http://IP:5000/configuration`
+- Modify scenarios, thresholds, modes, and schedules
+
+#### Configuration via files
+- `config.json`: General configuration
+- `data.json`: Scenarios, modes, scheduling
+- `nodes.json`: ESP32 nodes registry
+
+### 📝 Logs and Data
+
+Data is recorded in:
+- `arrosage_log.csv`: Watering history
+- `temp_humidity_log.csv`: Air temperature and humidity
+- `soil_moisture_log.csv`: Soil moisture
+- `nodes_data/{node_id}_*.csv`: Data per ESP32 node
+- `app.log`: System logs
+
+### 📖 Complete Documentation
+
+- **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)** - Complete startup and configuration guide
+- **[ARCHITECTURE_MULTI_NODES.md](ARCHITECTURE_MULTI_NODES.md)** - Detailed multi-node architecture
+- **[GUIDE_MULTI_NODES.md](GUIDE_MULTI_NODES.md)** - Multi-node startup guide
+- **[FONCTIONNALITES.md](FONCTIONNALITES.md)** - Complete feature list
+- **[esp32_node/README.md](esp32_node/README.md)** - ESP32 documentation
+
+### 🆘 Troubleshooting
+
+See **[GUIDE_DEMARRAGE.md](GUIDE_DEMARRAGE.md)** for:
+- Detailed instructions
+- Startup methods
+- Configuration
+- Troubleshooting
+- Automatic boot startup
+
+---
+
+## 📊 System Capabilities
+
+### Hub Raspberry Pi
+- ✅ 1 central hub
+- ✅ Complete web interface
+- ✅ Complete REST API
+- ✅ Multi-node support (up to 10+ nodes)
+
+### ESP32 Nodes
+- ✅ Up to 10+ simultaneous nodes
+- ✅ WiFi communication
+- ✅ Solar power possible
+- ✅ Independent zone control
+
+### Sensors
+- ✅ Soil moisture (per node)
+- ✅ Air temperature (per node)
+- ✅ Air humidity (per node)
+- ✅ Battery (per ESP32 node)
+- ✅ Solar charging (per ESP32 node)
+
+### Control
+- ✅ 1 pump per node (hub + ESP32)
+- ✅ Intelligent automatic control
+- ✅ Manual control via web interface
+- ✅ Watering scheduling
+
+---
+
+## 🔒 Security & Reliability
+
+- ✅ Protection against excessive watering
+- ✅ Leak detection with automatic shutdown
+- ✅ Error handling with automatic retry
+- ✅ Data persistence with automatic backup
+- ✅ Automatic reconnection for WiFi
+
+---
+
+## 📈 Statistics & Analysis
+
+- ✅ Daily statistics (watering count, water volume, runtime)
+- ✅ 24h trends (Min/Max/Average for all sensors)
+- ✅ Complete history with temporal graphs
+- ✅ Intelligent alerts (info, warning, danger levels)
+
+---
+
+## 🛠️ Technologies Used
+
+- **Backend**: Python 3, Flask
+- **Hardware**: Raspberry Pi, ESP32
+- **Sensors**: DHT11, ADS1115, Analog soil sensors
+- **Communication**: WiFi, HTTP/REST API
+- **Storage**: JSON, CSV files
+- **Frontend**: HTML, CSS, JavaScript (Chart.js)
+
+---
+
+## 📄 License
+
+This project is open source. See repository for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+**Made with ❤️ for plant lovers**
